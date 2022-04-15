@@ -46,9 +46,8 @@ void initialize() {
 
     current_timer = root;
 
-    // Determine timer overhead
     for (size_t i = 0; i < 1000; i++) {
-        push("Timer Overhead");
+        push("Timer Overhead (push/pop)");
         pop();
     }
 }
@@ -96,7 +95,12 @@ void print_timer_info(TimerDetail *timer) { // NOLINT
 
 } // namespace
 
-void report() { print_timer_info(root); }
+void report() { // Determine timer overhead
+    for (size_t i = 0; i < 1000; i++) {
+        Timer("Timer Overhead (class)");
+    }
+    print_timer_info(root);
+}
 
 void push(const std::string &name) {
     assert(current_timer != nullptr);

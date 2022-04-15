@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 int omp_get_max_threads();
+void omp_set_num_threads(int);
 
 #if defined(__cplusplus)
 }

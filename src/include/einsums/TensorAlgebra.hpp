@@ -928,7 +928,7 @@ auto element_transform(CType<CRank, T> *C, UnaryOperator unary_opt)
 #endif
     for (auto it = view.begin(); it != view.end(); it++) {
         T &target_value = std::apply(*C, *it);
-        target_value = unary_opt(target_value);
+        unary_opt(target_value);
     }
     Timer::pop();
 }
@@ -940,8 +940,10 @@ auto element_transform(SmartPtr *C, UnaryOperator unary_opt) -> std::enable_if_t
 
 template <template <size_t, typename> typename CType, template <size_t, typename> typename... MultiTensors, size_t Rank,
           typename MultiOperator, typename T = double>
-auto element(MultiOperator multi_opt, CType<Rank, T> *C, MultiTensors<Rank, T>... tensors) {
-    Timer::push("element");
+inline auto element(MultiOperator multi_opt, CType<Rank, T> *C, MultiTensors<Rank, T> &...tensors) {
+    static_assert(Rank > 0);
+
+    Timer::Timer timer("element");
     auto target_dims = get_dim_ranges<Rank>(*C);
     auto view = std::apply(ranges::views::cartesian_product, target_dims);
 
@@ -951,15 +953,14 @@ auto element(MultiOperator multi_opt, CType<Rank, T> *C, MultiTensors<Rank, T>..
     }
 
 #if defined(__INTEL_LLVM_COMPILER) || defined(__INTEL_COMPILER)
-#pragma omp parallel for simd
+#pragma omp parallel for simd schedule(guided)
 #else
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided)
 #endif
     for (auto it = view.begin(); it != view.end(); it++) {
         T &target_value = std::apply(*C, *it);
-        target_value = multi_opt(target_value, std::apply(tensors, *it)...);
+        multi_opt(target_value, std::apply(tensors, *it)...);
     }
-    Timer::pop();
 }
 
 } // namespace einsums::TensorAlgebra

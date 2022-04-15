@@ -17,14 +17,16 @@ auto main() -> int {
 
     Timer::initialize();
 
-#define NMO 10
-#define NBS 10
+#define NOC 100
+#define NMO 128
+#define NBS 128
 
+    int noc1{NOC}, noc2{NOC}, noc3{NOC}, noc4{NOC};
     int nmo1{NMO}, nmo2{NMO}, nmo3{NMO}, nmo4{NMO};
     int nbs1{NBS}, nbs2{NBS}, nbs3{NBS}, nbs4{NBS};
 
     println("Running on {} threads", omp_get_max_threads());
-    println("NMO {} :: NBS {}", NMO, NBS);
+    println("NOC {} :: NMO {} :: NBS {}", NOC, NMO, NBS);
 
     Timer::push("Allocations");
     auto GAO = std::make_unique<Tensor<4>>("AOs", nbs1, nbs2, nbs3, nbs4);
@@ -103,9 +105,32 @@ auto main() -> int {
 
     Timer::pop(); // Full Transformation
 
-    element_transform(&PQRS, [](double value) -> double { return 1.0 / value; });
+    element_transform(&PQRS, [](double &value) { value = 1.0 / value; });
 
-    Print::stacktrace();
+    for (int iter = 0; iter < 5; iter++) {
+        Timer::Timer iteration("Iteration");
+        auto B = Tensor{"B", noc1, noc2, noc3, noc4};
+        auto B_temp_1 = create_random_tensor("B temp 1", noc1, noc2, noc3, noc4);
+        auto B_temp_2 = create_random_tensor("B temp 2", noc1, noc2, noc3, noc4);
+
+        Timer::push("Building B Tensor Explicit Fors");
+#pragma omp parallel for simd schedule(guided) collapse(4)
+        for (int k = 0; k < noc1; k++) {
+            for (int l = 0; l < noc2; l++) {
+                for (int m = 0; m < noc3; m++) {
+                    for (int n = 0; n < noc4; n++) {
+                        B(k, l, m, n) = 0.5 * (B_temp_1(k, l, m, n) + B_temp_2(k, l, m, n));
+                    }
+                }
+            }
+        }
+        Timer::pop();
+
+        Timer::push("Building B Tensor Element");
+        TensorAlgebra::element([](double &target, double const &Lval, double const &Rval) { target = 0.5 * (Lval + Rval); }, &B, B_temp_1,
+                               B_temp_2);
+        Timer::pop();
+    }
 
     Timer::report();
     Timer::finalize();

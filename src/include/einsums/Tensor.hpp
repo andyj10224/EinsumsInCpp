@@ -655,7 +655,11 @@ auto create_random_tensor(const std::string &name, MultiIndex... index) -> Tenso
 
         re.seed(d.count());
     }
-    std::generate(A.vector_data().begin(), A.vector_data().end(), [&]() { return unif(re); });
+
+#pragma omp parallel for schedule(guided)
+    for (int _i = 0; _i < A.vector_data().size(); _i++) {
+        A.vector_data()[_i] = unif(re);
+    }
 
     return A;
 }
