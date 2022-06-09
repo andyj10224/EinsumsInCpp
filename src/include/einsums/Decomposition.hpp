@@ -378,56 +378,57 @@ auto tucker_ho_oi(const TTensor<TRank, TType> &tensor, std::vector<size_t> &rank
     auto factors = std::get<1>(ho_svd_guess);
 
     int iter = 0;
+    bool converged = false;
     while (iter < n_iter_max) {
         Tensor<TRank, TType> new_g_tensor;
-        std::vector<Tensor<2, TType>> new_factors;
+        std::vector<Tensor<2, TType>> new_folds;
         
         for_sequence<TRank>([&](auto i) {
             // Make the workspace for the contraction
             Dim<TRank> dims_buffer = tensor.dims();
-            // Make buffers to form intermediates while forming new factors
-            Tensor<TRank, TType>* old_factor_buffer;
-            Tensor<TRank, TType>* new_factor_buffer;
+            // Make buffers to form intermediates while forming new folds
+            Tensor<TRank, TType>* old_fold_buffer;
+            Tensor<TRank, TType>* new_fold_buffer;
 
-            // Initialize old factor buffer to the tensor
-            old_factor_buffer = new Tensor(dims_buffer);
-            *old_factor_buffer = tensor;
+            // Initialize old fold buffer to the tensor
+            old_fold_buffer = new Tensor(dims_buffer);
+            *old_fold_buffer = tensor;
 
             for_sequence<TRank>([&](auto j) {
                 if (j != i) {
                     size_t rank = ranks[j];
                     dims_buffer[j] = rank;
-                    new_factor_buffer = new Tensor(dims_buffer);
-                    new_factor_buffer->zero();
+                    new_fold_buffer = new Tensor(dims_buffer);
+                    new_fold_buffer->zero();
 
-                    auto source_dims = get_dim_ranges<TRank>(*old_factor_buffer);
+                    auto source_dims = get_dim_ranges<TRank>(*old_fold_buffer);
 
                     for (auto source_combination : std::apply(ranges::views::cartesian_product, source_dims)) {
                         for (size_t r = 0; r < rank; r++) {
                             auto target_combination = source_combination;
                             std::get<j>(target_combination) = r;
 
-                            TType &source = std::apply(*old_factor_buffer, source_combination);
-                            TType &target = std::apply(*new_factor_buffer, target_combination);
+                            TType &source = std::apply(*old_fold_buffer, source_combination);
+                            TType &target = std::apply(*new_fold_buffer, target_combination);
 
                             target += source * factors[j](std::get<j>(source_combination), r);
                         }
                     }
 
-                    delete old_factor_buffer;
-                    old_factor_buffer = new_factor_buffer;
+                    delete old_fold_buffer;
+                    old_fold_buffer = new_fold_buffer;
                 }
             });
 
-            Tensor<2, TType> new_factor = tensor_algebra::unfold<i>(*new_factor_buffer);
-            new_factors.push_back(new_factor);
+            Tensor<2, TType> new_fold = tensor_algebra::unfold<i>(*new_fold_buffer);
+            new_folds.push_back(new_fold);
 
             // Only delete once to avoid a double free
-            delete new_factor_buffer;
+            delete new_fold_buffer;
         });
 
-        // Reformulate guess based on HO SVD of new_factors
-        auto new_ho_svd = tucker_ho_svd(tensor, ranks, new_factors);
+        // Reformulate guess based on HO SVD of new_folds
+        auto new_ho_svd = tucker_ho_svd(tensor, ranks, new_folds);
         g_tensor = std::get<0>(new_ho_svd);
         factors = std::get<1>(new_ho_svd);
 
