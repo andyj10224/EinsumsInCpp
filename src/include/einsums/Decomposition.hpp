@@ -293,23 +293,28 @@ auto initialize_tucker(std::vector<Tensor<2, TType>> &folds, std::vector<size_t>
 }
 
 /**
- * Tucker decomposition via Higher-Order SVD (HO-SVD).
+ * Tucker decomposition of a tensor via Higher-Order SVD (HO-SVD).
  * Computes a rank-`rank` decomposition of `tensor` such that:
- *
- *   tensor = [|weights[r0][r1]...; factor[0][r1], ..., factors[-1][rn] |].
+ * 
+ *   tensor = [|weights[r0][r1]...; factor[0][r0], ..., factors[-1][rn] |]
  */
 template <template <size_t, typename> typename TTensor, size_t TRank, typename TType = double>
-auto tucker_ho_svd(const TTensor<TRank, TType> &tensor, std::vector<size_t> &ranks) 
-                -> std::tuple<TTensor<TRank, TType>, std::vector<Tensor<2, TType>>> {
+auto tucker_ho_svd(const TTensor<TRank, TType> &tensor, std::vector<size_t> &ranks,
+                   const std::vector<Tensor<2, TType>> &folds = std::vector<Tensor<2, TType>>()) 
+                   -> std::tuple<Tensor<TRank, TType>, std::vector<Tensor<2, TType>>> {
     
     using namespace einsums::tensor_algebra;
     using namespace einsums::tensor_algebra::index;
 
     // Compute set of unfolded matrices
     std::vector<Tensor<2, TType>> unfolded_matrices;
-    for_sequence<TRank>([&](auto i) {
-        unfolded_matrices.push_back(tensor_algebra::unfold<i>(tensor));
-    });
+    if (!folds.size()) {
+        for_sequence<TRank>([&](auto i) {
+            unfolded_matrices.push_back(tensor_algebra::unfold<i>(tensor));
+        });
+    } else {
+        unfolded_matrices = folds;
+    }
 
     // Perform SVD guess for tucker decomposition procedure
     std::vector<Tensor<2, TType>> factors = initialize_tucker<TRank, TType>(unfolded_matrices, ranks);
@@ -352,6 +357,82 @@ auto tucker_ho_svd(const TTensor<TRank, TType> &tensor, std::vector<size_t> &ran
     Tensor<TRank, TType> g_tensor = *(new_g_buffer);
     // ONLY delete one of the buffers, to avoid a double free
     delete new_g_buffer;
+
+    return std::make_tuple(g_tensor, factors);
+}
+
+/**
+ * Tucker decomposition via Higher-Order Orthogonal Inversion (HO-OI).
+ * Computes a rank-`rank` decomposition of `tensor` such that:
+ *
+ *   tensor = [|weights[r0][r1]...; factor[0][r1], ..., factors[-1][rn] |].
+ */
+template <template<size_t, typename> typename TTensor, size_t TRank, typename TType = double>
+auto tucker_ho_oi(const TTensor<TRank, TType> &tensor, std::vector<size_t> &ranks,
+                  int n_iter_max = 100, double tolerance = 1.e-8) 
+                  -> std::tuple<TTensor<TRank, TType>, std::vector<Tensor<2, TType>>> {
+    
+    // Use HO SVD as a starting guess
+    auto ho_svd_guess = tucker_ho_svd(tensor, ranks);
+    auto g_tensor = std::get<0>(ho_svd_guess);
+    auto factors = std::get<1>(ho_svd_guess);
+
+    int iter = 0;
+    while (iter < n_iter_max) {
+        Tensor<TRank, TType> new_g_tensor;
+        std::vector<Tensor<2, TType>> new_factors;
+        
+        for_sequence<TRank>([&](auto i) {
+            // Make the workspace for the contraction
+            Dim<TRank> dims_buffer = tensor.dims();
+            // Make buffers to form intermediates while forming new factors
+            Tensor<TRank, TType>* old_factor_buffer;
+            Tensor<TRank, TType>* new_factor_buffer;
+
+            // Initialize old factor buffer to the tensor
+            old_factor_buffer = new Tensor(dims_buffer);
+            *old_factor_buffer = tensor;
+
+            for_sequence<TRank>([&](auto j) {
+                if (j != i) {
+                    size_t rank = ranks[j];
+                    dims_buffer[j] = rank;
+                    new_factor_buffer = new Tensor(dims_buffer);
+                    new_factor_buffer->zero();
+
+                    auto source_dims = get_dim_ranges<TRank>(*old_factor_buffer);
+
+                    for (auto source_combination : std::apply(ranges::views::cartesian_product, source_dims)) {
+                        for (size_t r = 0; r < rank; r++) {
+                            auto target_combination = source_combination;
+                            std::get<j>(target_combination) = r;
+
+                            TType &source = std::apply(*old_factor_buffer, source_combination);
+                            TType &target = std::apply(*new_factor_buffer, target_combination);
+
+                            target += source * factors[j](std::get<j>(source_combination), r);
+                        }
+                    }
+
+                    delete old_factor_buffer;
+                    old_factor_buffer = new_factor_buffer;
+                }
+            });
+
+            Tensor<2, TType> new_factor = tensor_algebra::unfold<i>(*new_factor_buffer);
+            new_factors.push_back(new_factor);
+
+            // Only delete once to avoid a double free
+            delete new_factor_buffer;
+        });
+
+        // Reformulate guess based on HO SVD of new_factors
+        auto new_ho_svd = tucker_ho_svd(tensor, ranks, new_factors);
+        g_tensor = std::get<0>(new_ho_svd);
+        factors = std::get<1>(new_ho_svd);
+
+        iter += 1;
+    }
 
     return std::make_tuple(g_tensor, factors);
 }

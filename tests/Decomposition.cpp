@@ -103,6 +103,19 @@ TEST_CASE("TUCKER 1") {
 
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.178837));
+
+    result = tucker_ho_oi(test1, ranks);
+    g_tensor = std::get<0>(result);
+    factors = std::get<1>(result);
+
+    auto test1_ho_oi = tucker_reconstruct(g_tensor, factors);
+
+    diff = rmsd(test1, test1_ho_oi);
+
+    printf("diff: %f\n", diff);
+
+    REQUIRE(isgreaterequal(diff, 0.0));
+    REQUIRE(islessequal(diff, 0.173911));
 }
 
 TEST_CASE("TUCKER 2") {
@@ -130,6 +143,19 @@ TEST_CASE("TUCKER 2") {
 
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.123784));
+
+    result = tucker_ho_oi(test2, ranks);
+    g_tensor = std::get<0>(result);
+    factors = std::get<1>(result);
+
+    auto test2_ho_oi = tucker_reconstruct(g_tensor, factors);
+
+    diff = rmsd(test2, test2_ho_oi);
+
+    printf("diff: %f\n", diff);
+
+    REQUIRE(isgreaterequal(diff, 0.0));
+    REQUIRE(islessequal(diff, 0.122492));
 }
 
 TEST_CASE("TUCKER 3") {
@@ -160,4 +186,17 @@ TEST_CASE("TUCKER 3") {
 
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.196843));
+
+    result = tucker_ho_oi(test3, ranks);
+    g_tensor = std::get<0>(result);
+    factors = std::get<1>(result);
+
+    auto test3_ho_oi = tucker_reconstruct(g_tensor, factors);
+
+    diff = rmsd(test3, test3_ho_oi);
+
+    printf("diff: %f\n", diff);
+
+    REQUIRE(isgreaterequal(diff, 0.0));
+    REQUIRE(islessequal(diff, 0.192402));
 }
