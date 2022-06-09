@@ -223,6 +223,50 @@ auto parafac(const TTensor<TRank, TType> &tensor, size_t rank, int n_iter_max = 
 
 }
 
+template <template <size_t, typename> typename TTensor, size_t TRank, typename TType = double>
+auto tucker_reconstruct(const TTensor<TRank, TType> &g_tensor, const std::vector<TTensor<2, TType>>& factors) {
+
+    // Dimension workspace for temps
+    Dim<TRank> dims_buffer = g_tensor.dims();
+    // Buffers to hold intermediates while rebuilding the tensor
+    Tensor<TRank, TType>* old_tensor_buffer;
+    Tensor<TRank, TType>* new_tensor_buffer;
+
+    old_tensor_buffer = new Tensor(dims_buffer);
+    *old_tensor_buffer = g_tensor;
+
+    // Reform the tensor (with all its intermediates)
+    for_sequence<TRank>([&](auto i) {
+        size_t full_idx = factors[i].dim(0);
+        dims_buffer[i] = full_idx;
+        new_tensor_buffer = new Tensor(dims_buffer);
+        new_tensor_buffer->zero();
+
+        auto source_dims = get_dim_ranges<TRank>(*old_tensor_buffer);
+
+        for (auto source_combination : std::apply(ranges::views::cartesian_product, source_dims)) {
+            for (size_t n = 0; n < full_idx; n++) {
+                auto target_combination = source_combination;
+                std::get<i>(target_combination) = n;
+
+                TType &source = std::apply(*old_tensor_buffer, source_combination);
+                TType &target = std::apply(*new_tensor_buffer, target_combination);
+
+                target += source * factors[i](n, std::get<i>(source_combination));
+            }
+        }
+
+        delete old_tensor_buffer;
+        old_tensor_buffer = new_tensor_buffer;
+    });
+
+    Tensor<TRank, TType> new_tensor = *(new_tensor_buffer);
+    // Only delete one of the buffers, to avoid a double free
+    delete new_tensor_buffer;
+
+    return new_tensor;
+}
+
 template <size_t TRank, typename TType = double>
 auto initialize_tucker(std::vector<Tensor<2, TType>> &folds, std::vector<size_t> &ranks) -> std::vector<Tensor<2, TType>> {
 

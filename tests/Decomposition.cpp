@@ -95,7 +95,14 @@ TEST_CASE("TUCKER 1") {
     auto g_tensor = std::get<0>(result);
     auto factors = std::get<1>(result);
 
-    println(g_tensor);
+    auto test1_ho_svd = tucker_reconstruct(g_tensor, factors);
+
+    double diff = rmsd(test1, test1_ho_svd);
+
+    printf("diff: %f\n", diff);
+
+    REQUIRE(isgreaterequal(diff, 0.0));
+    REQUIRE(islessequal(diff, 0.178837));
 }
 
 TEST_CASE("TUCKER 2") {
@@ -115,5 +122,42 @@ TEST_CASE("TUCKER 2") {
     auto g_tensor = std::get<0>(result);
     auto factors = std::get<1>(result);
 
-    println(g_tensor);
+    auto test2_ho_svd = tucker_reconstruct(g_tensor, factors);
+
+    double diff = rmsd(test2, test2_ho_svd);
+
+    printf("diff: %f\n", diff);
+
+    REQUIRE(isgreaterequal(diff, 0.0));
+    REQUIRE(islessequal(diff, 0.123784));
+}
+
+TEST_CASE("TUCKER 3") {
+    using namespace einsums;
+    using namespace einsums::tensor_algebra;
+    using namespace einsums::decomposition;
+
+    Tensor<4, double> test3("test 3", 3, 2, 3, 2);
+    
+    test3.vector_data() = std::vector<double, einsums::AlignedAllocator<double, 64>>
+                            {0.37001224, 0.77676895, 0.17589323, 0.02762156, 0.21037116, 0.83686174,
+                             0.35042434, 0.19117270, 0.58095640, 0.99220655, 0.33536840, 0.15210615,
+                             0.95033534, 0.73212124, 0.31346639, 0.83961596, 0.15418801, 0.58927303,
+                             0.46744825, 0.44001279, 0.50372353, 0.09696069, 0.96449749, 0.71151666,
+                             0.72334792, 0.98646368, 0.13764230, 0.95949904, 0.07774470, 0.18239083,
+                             0.82591821, 0.40939436, 0.22088749, 0.90281597, 0.37465773, 0.02541923};
+
+    std::vector<size_t> ranks{2, 2, 2, 2};
+    auto result = tucker_ho_svd(test3, ranks);
+    auto g_tensor = std::get<0>(result);
+    auto factors = std::get<1>(result);
+
+    auto test3_ho_svd = tucker_reconstruct(g_tensor, factors);
+
+    double diff = rmsd(test3, test3_ho_svd);
+
+    printf("diff: %f\n", diff);
+
+    REQUIRE(isgreaterequal(diff, 0.0));
+    REQUIRE(islessequal(diff, 0.196843));
 }
