@@ -223,4 +223,93 @@ auto parafac(const TTensor<TRank, TType> &tensor, size_t rank, int n_iter_max = 
 
 }
 
+template <size_t TRank, typename TType = double>
+auto initialize_tucker(std::vector<Tensor<2, TType>> &folds, std::vector<size_t> &ranks) -> std::vector<Tensor<2, TType>> {
+
+    std::vector<Tensor<2, TType>> factors;
+
+    // Perform compile-time looping.
+    for_sequence<TRank>([&](auto i) {
+        size_t rank = ranks[i];
+        auto [U, S, _] = linear_algebra::svd_a(folds[i]);
+
+        // println(tensor_algebra::unfold<i>(tensor));
+        // println(S);
+
+        if (folds[i].dim(0) < rank) {
+            println_warn("dimension {} size {} is less than the requested decomposition rank {}", i, folds[i].dim(0), rank);
+            // TODO: Need to padd U up to rank
+        }
+
+        // Need to save the factors
+        factors.emplace_back(Tensor{U(All{}, Range{0, rank})});
+    });
+
+    return factors;
+}
+
+/**
+ * Tucker decomposition via Higher-Order SVD (HO-SVD).
+ * Computes a rank-`rank` decomposition of `tensor` such that:
+ *
+ *   tensor = [|weights[r0][r1]...; factor[0][r1], ..., factors[-1][rn] |].
+ */
+template <template <size_t, typename> typename TTensor, size_t TRank, typename TType = double>
+auto tucker_ho_svd(const TTensor<TRank, TType> &tensor, std::vector<size_t> &ranks) 
+                -> std::tuple<TTensor<TRank, TType>, std::vector<Tensor<2, TType>>> {
+    
+    using namespace einsums::tensor_algebra;
+    using namespace einsums::tensor_algebra::index;
+
+    // Compute set of unfolded matrices
+    std::vector<Tensor<2, TType>> unfolded_matrices;
+    for_sequence<TRank>([&](auto i) {
+        unfolded_matrices.push_back(tensor_algebra::unfold<i>(tensor));
+    });
+
+    // Perform SVD guess for tucker decomposition procedure
+    std::vector<Tensor<2, TType>> factors = initialize_tucker<TRank, TType>(unfolded_matrices, ranks);
+
+    // Get the dimension workspace for temps
+    Dim<TRank> dims_buffer = tensor.dims();
+    // Make buffers to hold intermediates while forming G
+    Tensor<TRank, TType>* old_g_buffer;
+    Tensor<TRank, TType>* new_g_buffer;
+
+    old_g_buffer = new Tensor(dims_buffer);
+    *old_g_buffer = tensor;
+
+    // Form G (with all of its intermediates)
+    for_sequence<TRank>([&](auto i) {
+        size_t rank = ranks[i];
+        dims_buffer[i] = rank;
+        new_g_buffer = new Tensor(dims_buffer);
+        new_g_buffer->zero();
+
+        auto source_dims = get_dim_ranges<TRank>(*old_g_buffer);
+
+        for (auto source_combination : std::apply(ranges::views::cartesian_product, source_dims)) {
+            for (size_t r = 0; r < rank; r++) {
+                auto target_combination = source_combination;
+                std::get<i>(target_combination) = r;
+
+                TType &source = std::apply(*old_g_buffer, source_combination);
+                TType &target = std::apply(*new_g_buffer, target_combination);
+
+                target += source * factors[i](std::get<i>(source_combination), r);
+            }
+        }
+
+        delete old_g_buffer;
+        old_g_buffer = new_g_buffer;
+    });
+
+
+    Tensor<TRank, TType> g_tensor = *(new_g_buffer);
+    // ONLY delete one of the buffers, to avoid a double free
+    delete new_g_buffer;
+
+    return std::make_tuple(g_tensor, factors);
+}
+
 } // namespace einsums::decomposition
