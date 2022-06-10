@@ -99,8 +99,6 @@ TEST_CASE("TUCKER 1") {
 
     double diff = rmsd(test1, test1_ho_svd);
 
-    printf("diff: %f\n", diff);
-
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.178837));
 
@@ -111,8 +109,6 @@ TEST_CASE("TUCKER 1") {
     auto test1_ho_oi = tucker_reconstruct(g_tensor, factors);
 
     diff = rmsd(test1, test1_ho_oi);
-
-    printf("diff: %f\n", diff);
 
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.173911));
@@ -139,8 +135,6 @@ TEST_CASE("TUCKER 2") {
 
     double diff = rmsd(test2, test2_ho_svd);
 
-    printf("diff: %f\n", diff);
-
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.110250));
 
@@ -151,8 +145,6 @@ TEST_CASE("TUCKER 2") {
     auto test2_ho_oi = tucker_reconstruct(g_tensor, factors);
 
     diff = rmsd(test2, test2_ho_oi);
-
-    printf("diff: %f\n", diff);
 
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.108301));
@@ -182,8 +174,6 @@ TEST_CASE("TUCKER 3") {
 
     double diff = rmsd(test3, test3_ho_svd);
 
-    printf("diff: %f\n", diff);
-
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.196843));
 
@@ -194,8 +184,6 @@ TEST_CASE("TUCKER 3") {
     auto test3_ho_oi = tucker_reconstruct(g_tensor, factors);
 
     diff = rmsd(test3, test3_ho_oi);
-
-    printf("diff: %f\n", diff);
 
     REQUIRE(isgreaterequal(diff, 0.0));
     REQUIRE(islessequal(diff, 0.192402));

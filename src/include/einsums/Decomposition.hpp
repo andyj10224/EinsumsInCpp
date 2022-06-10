@@ -437,8 +437,6 @@ auto tucker_ho_oi(const TTensor<TRank, TType> &tensor, std::vector<size_t> &rank
             rmsd_max = std::max(rmsd_max, rmsd(new_factors[n], factors[n]));
         });
 
-        printf("Iteration %d, RMSD: %8.8f\n", iter, rmsd_max);
-
         // Update G and factors
         g_tensor = new_g_tensor;
         factors = new_factors;
