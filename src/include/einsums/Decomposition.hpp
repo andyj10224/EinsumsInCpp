@@ -380,7 +380,6 @@ auto tucker_ho_oi(const TTensor<TRank, TType> &tensor, std::vector<size_t> &rank
     int iter = 0;
     bool converged = false;
     while (iter < n_iter_max) {
-        Tensor<TRank, TType> new_g_tensor;
         std::vector<Tensor<2, TType>> new_folds;
         
         for_sequence<TRank>([&](auto i) {
@@ -429,8 +428,25 @@ auto tucker_ho_oi(const TTensor<TRank, TType> &tensor, std::vector<size_t> &rank
 
         // Reformulate guess based on HO SVD of new_folds
         auto new_ho_svd = tucker_ho_svd(tensor, ranks, new_folds);
-        g_tensor = std::get<0>(new_ho_svd);
-        factors = std::get<1>(new_ho_svd);
+        auto new_g_tensor = std::get<0>(new_ho_svd);
+        auto new_factors = std::get<1>(new_ho_svd);
+
+        // Check for convergence
+        double rmsd_max = rmsd(new_g_tensor, g_tensor);
+        for_sequence<TRank>([&](auto n) {
+            rmsd_max = std::max(rmsd_max, rmsd(new_factors[n], factors[n]));
+        });
+
+        printf("Iteration %d, RMSD: %8.8f\n", iter, rmsd_max);
+
+        // Update G and factors
+        g_tensor = new_g_tensor;
+        factors = new_factors;
+
+        if (rmsd_max < tolerance) {
+            converged = true;
+            break;
+        }
 
         iter += 1;
     }

@@ -130,7 +130,7 @@ TEST_CASE("TUCKER 2") {
                              0.84288292, 0.48603425, 0.93286471, 0.47101289, 0.32736096, 0.50067919,
                              0.49932342, 0.91922942, 0.44777189, 0.23009644, 0.34874549, 0.19356636};
 
-    std::vector<size_t> ranks{2, 2, 2};
+    std::vector<size_t> ranks{2, 3, 2};
     auto result = tucker_ho_svd(test2, ranks);
     auto g_tensor = std::get<0>(result);
     auto factors = std::get<1>(result);
@@ -142,7 +142,7 @@ TEST_CASE("TUCKER 2") {
     printf("diff: %f\n", diff);
 
     REQUIRE(isgreaterequal(diff, 0.0));
-    REQUIRE(islessequal(diff, 0.123784));
+    REQUIRE(islessequal(diff, 0.110250));
 
     result = tucker_ho_oi(test2, ranks);
     g_tensor = std::get<0>(result);
@@ -155,7 +155,7 @@ TEST_CASE("TUCKER 2") {
     printf("diff: %f\n", diff);
 
     REQUIRE(isgreaterequal(diff, 0.0));
-    REQUIRE(islessequal(diff, 0.122492));
+    REQUIRE(islessequal(diff, 0.108301));
 }
 
 TEST_CASE("TUCKER 3") {
