@@ -889,4 +889,9 @@ inline auto ungqr<std::complex<double>>(blas_int m, blas_int n, blas_int k, std:
     return detail::zungqr(m, n, k, a, lda, tau);
 }
 
+
+template <>
+inline auto pstrf<double>(char uplo, blas_int n, double *a, blas_int lda, blas_int piv, blas_int rank, double tol, double *work) -> blas_int {
+    return detail::dpstrf(uplo, n, a, lda, piv, rank, tol, work);
+}
 } // namespace einsums::blas

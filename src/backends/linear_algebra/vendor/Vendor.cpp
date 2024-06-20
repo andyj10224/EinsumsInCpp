@@ -187,6 +187,7 @@ extern void FC_GLOBAL(cgeqrf, CGEQRF)(blas_int *, blas_int *, std::complex<float
                                       std::complex<float> *, blas_int *, blas_int *);
 extern void FC_GLOBAL(zgeqrf, ZGEQRF)(blas_int *, blas_int *, std::complex<double> *, blas_int *, std::complex<double> *,
                                       std::complex<double> *, blas_int *, blas_int *);
+extern void FC_GLOBAL(dpstrf, DPSTRF)(char *, blas_int *, double *, blas_int *, blas_int *, blas_int *, double *, double *);
 } // extern "C"
 EINSUMS_DISABLE_WARNING_POP
 

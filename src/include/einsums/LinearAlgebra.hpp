@@ -1323,4 +1323,29 @@ auto q(const Tensor<T, 2> &qr, const Tensor<T, 1> &tau) -> Tensor<T, 2> {
     return Q;
 }
 
+template<typename T>
+auto pivoted_cholesky(const Tensor<T, 2> &_A, T tol = std::numeric_limits<T>::epsilon()) -> std::tuple<Tensor<T, 2>, Tensor<T, 2>> {
+
+    if (_A.dim(0) != _A.dim(1)) {
+        throw std::runtime_error("Cannot use pivoted Cholesky on non-square matrix!");
+    }
+
+    size_t n = _A.dim(0);
+    Tensor<T, 2> _R = _A;
+    Tensor<T, 1> _piv("permutation", n);
+    Tensor<T, 1> _work("workspace", 2*n);
+    size_t *rank;
+
+    blas_int info = blas::pstrf('U', n, _R.data(), n, _piv.data(), rank, tol, _work.data());
+
+    Tensor<T, 2> _pi = create_tensor<T>(n, *rank);
+    _pi.zero();
+
+    for (int r = 0; r < rank; ++r) {
+        _pi(_piv(r)-1, r) = 1;
+    }
+
+    return std::make_tuple(_R, _pi);
+}
+
 END_EINSUMS_NAMESPACE_HPP(einsums::linear_algebra)

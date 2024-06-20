@@ -381,5 +381,9 @@ auto zungqr(blas_int m, blas_int n, blas_int k, std::complex<double> *a, blas_in
     return ::einsums::backend::linear_algebra::EINSUMS_LINEAR_ALGEBRA_NAMESPACE::zungqr(m, n, k, a, lda, tau);
 }
 
+auto dpstrf(char uplo, blas_int n, double *a, blas_int lda, blas_int piv, blas_int rank, double tol, double *work) -> blas_int {
+    return ::einsums::backend::linear_algebra::EINSUMS_LINEAR_ALGBERA_NAMESPACE::dpstrf(uplo, n, a, lda, piv, rank, tol, work);
+}
+
 } // namespace detail
 } // namespace einsums::blas

@@ -263,3 +263,15 @@ TEST_CASE("truncated_svd") {
         truncated_svd_test<std::complex<double>>();
     }
 }
+
+TEST_CASE("pivoted_cholesky") {
+    // Create random positive-semidefinite matrix (dimension 10, rank 5)
+    size_t n = 10
+    size_t r = 5
+
+    auto X = create_random_tensor<double>("random tensor", 10, 5);
+    auto A = einsums::linear_algebra::gemm<false, true>(1.0, X, X);
+
+    auto &[R, pi] = einsums::linear_algebra::pivoted_cholesky(A);
+    REQUIRE_THAT(pi.dim(1) == r)
+}

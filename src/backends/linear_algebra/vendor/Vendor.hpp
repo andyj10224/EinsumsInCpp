@@ -186,4 +186,6 @@ auto sgeqrf(blas_int m, blas_int n, float *a, blas_int lda, float *tau) -> blas_
 auto cgeqrf(blas_int m, blas_int n, std::complex<float> *a, blas_int lda, std::complex<float> *tau) -> blas_int;
 auto zgeqrf(blas_int m, blas_int n, std::complex<double> *a, blas_int lda, std::complex<double> *tau) -> blas_int;
 
+auto dpstrf(char uplo, blas_int n, double *a, blas_int lda, blas_int piv, blas_int rank, double tol, double *work) -> blas_int;
+
 } // namespace einsums::backend::linear_algebra::vendor
